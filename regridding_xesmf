@@ -1,0 +1,19 @@
+import xarray as xr
+import xesmf as xe
+
+ds=xr.open_dataset('votemper.nc')
+dr=ds["votemper"]
+#renaming the logitude (nav_lon) and latitiude (nav_lat) (since xarray can't identify otherwise)
+ds=ds.rename({"nav_lon":"lon","nav_lat":"lat"})
+#generating a new grid 
+
+print(ds)
+ds_out=xe.util.grid_2d(40.0, 131.0, 1, -30, 31, 1)
+regridder=xe.Regridder(ds,ds_out,'bilinear',ignore_degenerate=True)
+#regridder
+#print(regridder)
+dr_out=regridder(dr)
+data = regridder(ds)
+print(data)
+
+data.to_netcdf("votemper18_regridded.nc")
