@@ -1,0 +1,47 @@
+# Slicing a dataset -- using iris
+
+import iris
+import numpy as np
+
+filename='votemper.nc' #call your file
+cube=iris.load_cube(filename,'votemper')
+lev_coord=cube.coord('Vertical T levels') #renaming the depth (optional)
+lev_coord.rename('vertical_T_levels')
+
+def nemo_to_regular(cube):
+   '''For a NEMO cube convert it to a regular cube from 20N to 20S'''
+
+   lat=cube.coord('latitude')
+   lon=cube.coord('longitude')
+   lat_points=lat.points[:,0]
+   ind1=np.where(lat_points>-20)[0].min()
+   ind2=np.where(lat_points<20)[0].max()
+   lat_points=lat_points[ind1:ind2+1]
+
+   lon_points=lon.points[0,:]
+   ind1=np.where(lon_points>-60)[0].min()
+   ind2=np.where(lon_points<60)[0].max()
+   lon_points=lon_points[ind1:ind2+1]
+
+   #yind=lon.points.shape[0]//2
+   #lon_points=lon.points[yind,1:-1]
+
+   #Roll the cube to go from -180 to 180
+   nx=lon_points.shape[0]
+   argmin=np.argmin(lon_points)
+   lon_points=np.roll(lon_points,nx-argmin)
+
+   new_lon=iris.coords.DimCoord(lon_points, standard_name='longitude', long_name='Longitude', units='degrees_east')
+   new_lon.guess_bounds()
+   new_lat=iris.coords.DimCoord(lat_points, standard_name='latitude', long_name='Latitude', units='degrees_north')
+   new_lat.guess_bounds()
+
+   cube.remove_coord('latitude')
+   cube.remove_coord('longitude')
+
+   cube=cube[...,ind1:ind2+1,1:-1]
+   cube.data=np.roll(cube.data,nx-argmin,axis=-1)
+   cube.add_dim_coord(new_lon,cube.ndim-1)
+   cube.add_dim_coord(new_lat,cube.ndim-2)
+
+   return cube
